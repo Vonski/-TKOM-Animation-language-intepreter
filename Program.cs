@@ -15,7 +15,7 @@ namespace Code
             while(token.token!=TokenType.EOF)
             {
                 Console.WriteLine("{ " + token.token + ", " + token.code + "}");
-                token =lexer.NextToken();
+                token = lexer.NextToken();
             }
         }
     }
