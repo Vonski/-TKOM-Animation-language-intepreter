@@ -9,14 +9,19 @@ namespace Code
     {
         static void Main(string[] args)
         {
-            string source = File.ReadAllText("./testCode.txt");
-            Lexer lexer = new Lexer(source);
+            Lexer lexer = new Lexer("./testCode.txt");
             TokenInfo token = lexer.NextToken();
             while(token.token!=TokenType.EOF)
             {
-                Console.WriteLine("{ " + token.token + ", " + token.code + "}");
+                Console.WriteLine("{ " + token.token + ", " + token.code + ", " + token.value +  ", " + token.line +  ", " + token.position + "}");
                 token = lexer.NextToken();
             }
+
+            // Scanner scan = new Scanner("./testCode.txt");
+            // char? ch;
+            // for (int i=0; i<520; ++i)
+            //     if ((ch = scan.GetNextChar())!=null)
+            //         Console.Write(ch);
         }
     }
 }
