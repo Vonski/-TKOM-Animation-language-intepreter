@@ -13,6 +13,7 @@ namespace Code
         AnimationDeclaration,
         FigureDeclaration,
         Assignment,
+        If,
         Other
     }
     abstract class Statement
@@ -61,6 +62,40 @@ namespace Code
         TokenInfo id;
         Queue<Tuple<TokenInfo, TokenInfo>> args;
         List<Statement> statements;
+    }
+
+    class IfStatement : Statement
+    {
+        public IfStatement(Queue<List<TokenInfo>> e1, TokenInfo relOp, Queue<List<TokenInfo>> e2, List<Statement> stat, List<Statement> elseStat)
+        {
+            type = StatementType.If;
+            expr1 = e1;
+            relationOp = relOp;
+            expr2 = e2;
+            statements = stat;
+            elseStatements = elseStat;
+        }
+
+        public override string ToString()
+        {
+            string ret = "";
+            foreach(var token in expr1)
+                if(token[0].value!=null)
+                    ret += " " + token[0].value;
+                else
+                    ret += " " + token[0].code;
+            ret += ", " + relationOp.code + ", ";
+            foreach(var token in expr2)
+                if(token[0].value!=null)
+                    ret += " " + token[0].value;
+                else
+                    ret += " " + token[0].code;
+            return type + ", " + ret;
+        }
+
+        TokenInfo relationOp;
+        Queue<List<TokenInfo>> expr1, expr2;
+        List<Statement> statements, elseStatements;
     }
 
     class ForEachStatement : Statement

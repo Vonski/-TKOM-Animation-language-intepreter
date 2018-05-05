@@ -64,7 +64,7 @@ namespace Code
             ret = HandleAnimationDeclaration();
             if (ret!=null)
                 return ret;
-            ret = null; // if
+            ret = HandleIfStatement();
             if (ret!=null)
                 return ret;
             ret = HandleForEachStatement();
@@ -86,27 +86,58 @@ namespace Code
             ret = HandleAssignment(ids);
             if (ret!=null)
                 return ret;
-            // switch(currentToken.token)
-            // {
-            //     case TokenType.Figure: return HandleFigureDeclaration();
-            //     // case TokenType.Animation: return HandleAnimationDeclaration();
-            //     // case TokenType.If: /* funcall */ break;
-            //     // case TokenType.For: return HandleForEachStatement();
-            //     // case TokenType.Each: return HandleEachStatement();
-            //     // case TokenType.Identifier:
-            //     //     string id = currentToken.code;
-            //     //     NextToken();
-            //     //     if(currentToken.token==TokenType.Identifier)
-            //     //         return HandleInstantiation(id);
-            //     //     else if(currentToken.token==TokenType.Dot || currentToken.token==TokenType.AssignmentOperator)
-            //     //         return HandleAttribAssignment(id);
-            //     //     else
-            //     //         return HandleAnimationCall(id);
-            //     default:
-            //         throw new SyntaxException("Unexpected symbol in line: " + currentToken.line);
-            // }
-            throw new SyntaxException("Unexpected symbol in line: " + currentToken.line);    
-            //return null;
+            throw new SyntaxException("Unexpected symbol in line: " + currentToken.line);
+        }
+
+        private Statement NextDeclStatement()
+        {
+            Statement ret=null;
+            ret = HandleFigureDeclaration();
+            if (ret!=null)
+                return ret;
+            ret = HandleAnimationDeclaration();
+            if (ret!=null)
+                return ret;
+            List<TokenInfo> ids = new List<TokenInfo>();
+            ids.Add(currentToken);
+            Expect(TokenType.Identifier, "Unexpected symbol in declaration in line " + currentToken.line);
+            ret = HandleVarAndCollDeclaration(ids[0]);
+            if (ret!=null)
+                return ret;
+            ids = GetAttribToken(ids);
+            ret = HandleAssignment(ids);
+            if (ret!=null)
+                return ret;
+            if(Accept(TokenType.EOF))
+                throw new SyntaxException("Unexpected end of file");
+            throw new SyntaxException("Unexpected symbol in declaration in line: " + currentToken.line);
+        }
+
+        private Statement NextBlockStatement()
+        {
+            Statement ret=null;
+            ret = HandleIfStatement();
+            if (ret!=null)
+                return ret;
+            ret = HandleForEachStatement();
+            if (ret!=null)
+                return ret;
+            List<TokenInfo> ids = new List<TokenInfo>();
+            ids.Add(currentToken);
+            Expect(TokenType.Identifier, "Unexpected symbol in line " + currentToken.line);
+            ret = HandleVarAndCollDeclaration(ids[0]);
+            if (ret!=null)
+                return ret;
+            ids = GetAttribToken(ids);
+            ret = HandleAnimationCall(ids);
+            if (ret!=null)
+                return ret;
+            ret = HandleAssignment(ids);
+            if (ret!=null)
+                return ret;
+            if(Accept(TokenType.EOF))
+                throw new SyntaxException("Unexpected end of file");
+            throw new SyntaxException("Unexpected symbol in line: " + currentToken.line);
         }
 
         private Statement HandleFigureDeclaration()
@@ -115,8 +146,11 @@ namespace Code
             {
                 TokenInfo id = currentToken;
                 Expect(TokenType.Identifier);
-                /* Figure declaration block funcall */
-                return new FigureDeclarationStatement(id, new List<Statement>());
+                Expect(TokenType.CurlyBracketLeft);
+                List<Statement> declStatements = new List<Statement>();
+                while(!Accept(TokenType.CurlyBracketRight))
+                    declStatements.Add(NextDeclStatement());
+                return new FigureDeclarationStatement(id, declStatements);
             }
             return null;
         }
@@ -128,8 +162,11 @@ namespace Code
                 TokenInfo id = currentToken;
                 Expect(TokenType.Identifier);
                 Queue<Tuple<TokenInfo, TokenInfo>> args = GetArgs();
-                /* Block funcall */
-                return new AnimationDeclarationStatement(id, args, new List<Statement>());
+                Expect(TokenType.CurlyBracketLeft);
+                List<Statement> blockStatements = new List<Statement>();
+                while(!Accept(TokenType.CurlyBracketRight))
+                    blockStatements.Add(NextBlockStatement());
+                return new AnimationDeclarationStatement(id, args, blockStatements);
             }
             return null;
         }
@@ -155,6 +192,41 @@ namespace Code
             }
         }
 
+        private Statement HandleIfStatement()
+        {
+            if (Accept(TokenType.If))
+            {
+                var token = new List<TokenInfo>();
+                var lastToken = new List<TokenInfo>();
+                token.Add(new TokenInfo(TokenType.AssignmentOperator, "=", 0, currentToken.line));
+                Expect(TokenType.ParenthesisLeft);
+                var expr1 = GetArithmExpr(lastToken, token);
+                TokenInfo relationOp = currentToken;
+                ExpectRelationOp();
+                var expr2 = GetArithmExpr(lastToken, token);
+                Expect(TokenType.ParenthesisRight);
+                List<Statement> blockStatements = new List<Statement>();
+                List<Statement> elseBlockStatements = new List<Statement>();
+                if(Accept(TokenType.CurlyBracketLeft))
+                {
+                    while(!Accept(TokenType.CurlyBracketRight))
+                    blockStatements.Add(NextBlockStatement());
+                }
+                blockStatements.Add(NextBlockStatement());
+                if (Accept(TokenType.Else))
+                {  
+                    if(Accept(TokenType.CurlyBracketLeft))
+                    {
+                        while(!Accept(TokenType.CurlyBracketRight))
+                        elseBlockStatements.Add(NextBlockStatement());
+                    }
+                    elseBlockStatements.Add(NextBlockStatement());
+                }
+                return new IfStatement(expr1, relationOp, expr2, blockStatements, elseBlockStatements);
+            }
+            return null;
+        }
+
         private Statement HandleForEachStatement()
         {
             if (Accept(TokenType.For))
@@ -165,8 +237,14 @@ namespace Code
                 Expect(TokenType.In);
                 TokenInfo idc = currentToken;
                 Expect(TokenType.Identifier);
-                /* Block funcall */
-                return new ForEachStatement(idv, idc, new List<Statement>());
+                List<Statement> blockStatements = new List<Statement>();
+                if(Accept(TokenType.CurlyBracketLeft))
+                {
+                    while(!Accept(TokenType.CurlyBracketRight))
+                    blockStatements.Add(NextBlockStatement());
+                }
+                blockStatements.Add(NextBlockStatement());
+                return new ForEachStatement(idv, idc, blockStatements);
             }
             return null;
         }
@@ -177,8 +255,14 @@ namespace Code
             {
                 TokenInfo period = currentToken;
                 Expect(TokenType.Integer);
-                /* Block funcall */
-                return new EachStatement(period, new List<Statement>());
+                List<Statement> blockStatements = new List<Statement>();
+                if(Accept(TokenType.CurlyBracketLeft))
+                {
+                    while(!Accept(TokenType.CurlyBracketRight))
+                    blockStatements.Add(NextBlockStatement());
+                }
+                blockStatements.Add(NextBlockStatement());
+                return new EachStatement(period, blockStatements);
             }
             return null;
         }
@@ -189,6 +273,7 @@ namespace Code
             if(Accept(TokenType.Identifier))
             {
                 int index = HandleSubscriptOp();
+                Expect(TokenType.Semicolon, "Expected semicolon at the end of line " + currentToken.line);
                 if(index==-1)
                     return new VariableInstantiationStatement(type, name);
                 else if(index==0)
@@ -226,7 +311,10 @@ namespace Code
                     else
                         throw new SyntaxException("Bad animation call in line " + currentToken.line);
                     if(Accept(TokenType.ParenthesisRight))
+                    {
+                        Expect(TokenType.Semicolon, "Expected semicolon at the end of line " + currentToken.line);
                         return new AnimationCallStatement(ids, args);
+                    }
                     if(args.Count!=0 && currentToken.token!=TokenType.Comma)
                         throw new SyntaxException("Bad animation call in line " + currentToken.line);
                     NextToken();
@@ -246,12 +334,12 @@ namespace Code
             return GetAttribToken(ids);
         }
 
-        private List<TokenInfo> AcceptArithmToken()
+        private List<TokenInfo> AcceptArithmToken(int deepness)
         {
             List<TokenInfo> ids = new List<TokenInfo>();
             TokenInfo token = currentToken;
             ids.Add(token);
-            if(Accept(TokenType.Integer) || AcceptArithmOp() || Accept(TokenType.ParenthesisLeft) || Accept(TokenType.ParenthesisRight))
+            if(Accept(TokenType.Integer) || AcceptArithmOp() || Accept(TokenType.ParenthesisLeft) || (deepness>0 && Accept(TokenType.ParenthesisRight)))
                 return ids;
             if(Accept(TokenType.Identifier))
                 return GetAttribToken(ids);
@@ -304,7 +392,16 @@ namespace Code
             token.Add(currentToken);
             if(Accept(TokenType.AssignmentOperator))
             {
-                var queue = GetArithmExpr(lastToken, token);
+                var queue = new Queue<List<TokenInfo>>();
+                if (Accept(TokenType.Color))
+                {
+                    var tmp = new List<TokenInfo>();
+                    tmp.Add(currentToken);
+                    queue.Enqueue(tmp);
+                }
+                else
+                    queue = GetArithmExpr(lastToken, token);
+                Expect(TokenType.Semicolon, "Expected semicolon at the end of line " + currentToken.line);
                 return new AssignmentStatement(lvalue, queue);
             }
             return null;
@@ -318,7 +415,7 @@ namespace Code
             while(true)
             {
                 lastToken = token;
-                token = AcceptArithmToken();
+                token = AcceptArithmToken(deepness);
                 if (token==null)
                     break;
                 if(!IsTokenValid(lastToken[0], token[0], deepness))
@@ -392,6 +489,13 @@ namespace Code
         private bool AcceptArithmOp()
         {
             return (Accept(TokenType.PlusOperator) || Accept(TokenType.MinusOperator) || Accept(TokenType.AsteriskOperator) || Accept(TokenType.SlashOperator));
+        }
+
+        private bool ExpectRelationOp()
+        {
+            if (Accept(TokenType.EqualityOperator) || Accept(TokenType.InequalityOperator) || Accept(TokenType.GreaterOperator) || Accept(TokenType.GreaterOrEqualOperator) || Accept(TokenType.LessOrEqualOperator) || Accept(TokenType.LessOperator))
+                return true;
+            throw new SyntaxException("Expected relation operator in line " + currentToken.line);
         }
 
         private List<Statement> statements;

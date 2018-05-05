@@ -1,13 +1,3 @@
-figure figurka
-animation spin(figurka fig, ms period)
-boom sboom
-boom sboom[3]
-each 1000
-    for each fig in figurki
-        b.c[5].spin(fig, 100)
-
-asc=a+b/3*(2-3)-4*2
-
 figure figurka {
     line linia;
     linia.x = 10;
