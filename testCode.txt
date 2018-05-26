@@ -15,20 +15,20 @@ each 1000
 
 
 circle kolko;
-if(1<2+2)
+if(1<2*2*3*4+2+3/4-2/445-2-2-2+2*2/3+(2*3*4+(2*2+3+4+5)))
     kolko.color = #654321;
-else
+
 if(1<=2*2)
     kolko.color = #654322;
-else
+
 if(2>1-1)
     kolko.color = #654323;
-else
+
 if(2>=1/1)
     kolko.color = #654324;
-else
+
 if(1==1)
     kolko.color = #654325;
-else
+
 if(1!=2)
     kolko.color = #654326;
