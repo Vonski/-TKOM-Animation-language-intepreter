@@ -5,18 +5,18 @@ namespace Code
 {
     interface Statement
     {
-        void execute();
+        void execute(ScopesManager sm);
     }
 
     class FigureDeclarationStatement : Statement
     {
-        public FigureDeclarationStatement(string idd, List<Statement> list)
+        public FigureDeclarationStatement(string idd, Queue<Statement> list)
         {
             id = idd;
             statements = list;
         }
         
-        public void execute() {}
+        public void execute(ScopesManager sm) {}
 
         public override string ToString()
         {
@@ -24,19 +24,19 @@ namespace Code
         }
 
         string id;
-        List<Statement> statements;
+        Queue<Statement> statements;
     }
 
     class AnimationDeclarationStatement : Statement
     {
-        public AnimationDeclarationStatement(string idd, Queue<ArgumentDeclaration> arguments, List<Statement> list)
+        public AnimationDeclarationStatement(string idd, Queue<ArgumentDeclaration> arguments, Queue<Statement> list)
         {
             id = idd;
             args = arguments;
             statements = list;
         }
         
-        public void execute() {}
+        public void execute(ScopesManager sm) {}
 
         public override string ToString()
         {
@@ -50,12 +50,12 @@ namespace Code
 
         string id;
         Queue<ArgumentDeclaration> args;
-        List<Statement> statements;
+        Queue<Statement> statements;
     }
 
     class IfStatement : Statement
     {
-        public IfStatement(ArithmExprEvaluator e1, RelationEvalutator relOp, ArithmExprEvaluator e2, List<Statement> stat, List<Statement> elseStat)
+        public IfStatement(ArithmExprEvaluator e1, RelationEvalutator relOp, ArithmExprEvaluator e2, Queue<Statement> stat, Queue<Statement> elseStat)
         {
             expr1 = e1;
             relationOp = relOp;
@@ -64,7 +64,26 @@ namespace Code
             elseStatements = elseStat;
         }
         
-        public void execute() {}
+        public void execute(ScopesManager sm)
+        {
+
+            sm.NewScope();
+            Statement stat;
+            if (relationOp.eval(expr1, expr2))
+                while(statements.Count>0)
+                {
+                    stat = statements.Dequeue();
+                    stat.execute(sm);
+                }
+            else
+                while (statements.Count > 0)
+                {
+                    stat = statements.Dequeue();
+                    stat.execute(sm);
+                }
+
+            //sm.DestroyScope();
+        }
 
         public override string ToString()
         {
@@ -73,19 +92,19 @@ namespace Code
 
         RelationEvalutator relationOp;
         ArithmExprEvaluator expr1, expr2;
-        List<Statement> statements, elseStatements;
+        Queue<Statement> statements, elseStatements;
     }
 
     class ForEachStatement : Statement
     {
-        public ForEachStatement(string idv, ValueEvaluator idc, List<Statement> list)
+        public ForEachStatement(string idv, ValueEvaluator idc, Queue<Statement> list)
         {
             iterator_id = idv;
             collection_id = idc;
             statements = list;
         }
         
-        public void execute() {}
+        public void execute(ScopesManager sm) {}
 
         public override string ToString()
         {
@@ -94,18 +113,18 @@ namespace Code
 
         string iterator_id;
         ValueEvaluator collection_id;
-        List<Statement> statements;
+        Queue<Statement> statements;
     }
 
     class EachStatement : Statement
     {
-        public EachStatement(int p, List<Statement> list)
+        public EachStatement(int p, Queue<Statement> list)
         {
             period = p;
             statements = list;
         }
         
-        public void execute() {}
+        public void execute(ScopesManager sm) {}
 
         public override string ToString()
         {
@@ -113,7 +132,7 @@ namespace Code
         }
 
         int period;
-        List<Statement> statements;
+        Queue<Statement> statements;
     }
 
     class VariableInstantiationStatement : Statement
@@ -124,7 +143,18 @@ namespace Code
             name = n;
         }
         
-        public void execute() {}
+        public void execute(ScopesManager sm)
+        {
+            IComposite variable = sm.GetMyType(varType);
+            if (variable != null)
+            {
+                var tmp = Prototype.CloneObject(variable) as IComposite;
+                tmp.Name = name;
+                sm.declareVar(name, tmp);
+            }
+            else
+                throw new RuntimeException("Nie ma takiego typu");
+        }
 
         public override string ToString()
         {
@@ -143,7 +173,22 @@ namespace Code
             count = c;
         }
         
-        public void execute() {}
+        public void execute(ScopesManager sm)
+        {
+            IComposite variable = sm.GetMyType(varType);
+            Composite collection = new Composite(name);
+            if (variable == null)
+                throw new RuntimeException("Nie ma takiego typu");
+
+            for (int i = 0; i < count; ++i)
+            {
+                IComposite tmp2 = Prototype.CloneObject(variable) as IComposite;
+                tmp2.Position += new SFML.System.Vector2f(i*30.0f, i*30.0f);
+                collection.Add(tmp2);
+            }
+            
+            sm.declareVar(name, collection);
+        }
 
         public override string ToString()
         {
@@ -162,7 +207,7 @@ namespace Code
             args = queue;
         }
         
-        public void execute() {}
+        public void execute(ScopesManager sm) {}
 
         public override string ToString()
         {
@@ -186,7 +231,10 @@ namespace Code
             arithmeticExpression = arguments;
         }
         
-        public void execute() {}
+        public void execute(ScopesManager sm)
+        {
+
+        }
 
         public override string ToString()
         {
@@ -196,5 +244,12 @@ namespace Code
 
         ValueEvaluator ids;
         ArithmExprEvaluator arithmeticExpression;
+    }
+
+    class RuntimeException : Exception
+    {
+        public RuntimeException() { }
+        public RuntimeException(string message) : base(message) { Console.WriteLine(message); }
+        public RuntimeException(string message, Exception inner) : base(message, inner) { Console.WriteLine(message); }
     }
 }

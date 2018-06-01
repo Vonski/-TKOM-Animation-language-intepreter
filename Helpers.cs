@@ -20,32 +20,32 @@ namespace Code
         {
             relationOp = op;
         }
-        public bool eval(List<TokenInfo> expr1, List<TokenInfo> expr2)
+        public bool eval(ArithmExprEvaluator expr1, ArithmExprEvaluator expr2)
         {
             switch(relationOp)
             {
                 case "==":
-                    if (expr1.Count == expr2.Count) // do zmiany na value
+                    if (expr1.eval() == expr2.eval())
                         return true;
                     break;
                 case "!=":
-                    if (expr1.Count != expr2.Count)
+                    if (expr1.eval() != expr2.eval())
                         return true;
                     break;
                 case ">=":
-                    if (expr1.Count >= expr2.Count)
+                    if (expr1.eval() >= expr2.eval())
                         return true;
                     break;
                 case ">":
-                    if (expr1.Count > expr2.Count)
+                    if (expr1.eval() > expr2.eval())
                         return true;
                     break;
                 case "<=":
-                    if (expr1.Count <= expr2.Count)
+                    if (expr1.eval() <= expr2.eval())
                         return true;
                     break;
                 case "<":
-                    if (expr1.Count < expr2.Count)
+                    if (expr1.eval() < expr2.eval())
                         return true;
                     break;
                 default:

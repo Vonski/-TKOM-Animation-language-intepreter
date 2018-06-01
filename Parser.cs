@@ -8,17 +8,17 @@ namespace Code
         public Parser(string path)
         {
             lexer = new Lexer(path);
-            statements = new List<Statement>();
+            statements = new Queue<Statement>();
             currentToken = lexer.NextToken();
         }
 
-        public List<Statement> Run()
+        public Queue<Statement> Run()
         {
             while(currentToken.token!=TokenType.EOF)
             {
                 try
                 {
-                    statements.Add(NextStatement());
+                    statements.Enqueue(NextStatement());
                 }
                 catch { return statements; }
             }
@@ -119,11 +119,11 @@ namespace Code
             throw new SyntaxException("Unexpected symbol in declaration in line: " + currentToken.line);
         }
 
-        private List<Statement> GetDeclStatementBlock()
+        private Queue<Statement> GetDeclStatementBlock()
         {
-            List<Statement> ret = new List<Statement>();
+            Queue<Statement> ret = new Queue<Statement>();
             while(!Accept(TokenType.CurlyBracketRight))
-                ret.Add(NextDeclStatement());
+                ret.Enqueue(NextDeclStatement());
             return ret;
         }
 
@@ -153,24 +153,24 @@ namespace Code
             throw new SyntaxException("Unexpected symbol in line: " + currentToken.line);
         }
 
-        private List<Statement> GetStatementBlockInCurlyBracket()
+        private Queue<Statement> GetStatementBlockInCurlyBracket()
         {
-            List<Statement> ret = new List<Statement>();
+            Queue<Statement> ret = new Queue<Statement>();
             while(!Accept(TokenType.CurlyBracketRight))
-                ret.Add(NextBlockStatement());
+                ret.Enqueue(NextBlockStatement());
             return ret;
         }
 
-        private List<Statement> GetStatementBlock()
+        private Queue<Statement> GetStatementBlock()
         {
-            var ret = new List<Statement>();
+            var ret = new Queue<Statement>();
             if(Accept(TokenType.CurlyBracketLeft))
             {
                 while(!Accept(TokenType.CurlyBracketRight))
-                    ret.Add(NextBlockStatement());
+                    ret.Enqueue(NextBlockStatement());
             }
             else
-                ret.Add(NextBlockStatement());
+                ret.Enqueue(NextBlockStatement());
             return ret;
         }
 
@@ -195,7 +195,7 @@ namespace Code
                 Expect(TokenType.Identifier);
                 Queue<ArgumentDeclaration> args = GetArgs();
                 Expect(TokenType.CurlyBracketLeft);
-                List<Statement> blockStatements = GetStatementBlockInCurlyBracket();
+                Queue<Statement> blockStatements = GetStatementBlockInCurlyBracket();
                 return new AnimationDeclarationStatement(id.code, args, blockStatements);
             }
             return null;
@@ -205,21 +205,17 @@ namespace Code
         {
             Expect(TokenType.ParenthesisLeft);
             Queue<ArgumentDeclaration> args = new Queue<ArgumentDeclaration>();
-            if(Accept(TokenType.ParenthesisRight))
-                return args;
-            while(true)
+            while(!Accept(TokenType.ParenthesisRight))
             {
+                if(args.Count!=0)
+                    Expect(TokenType.Comma, "Bad animation declaration in line " + currentToken.line);
                 TokenInfo type = currentToken;
                 Expect(TokenType.Identifier);
                 TokenInfo name = currentToken;
                 Expect(TokenType.Identifier);
                 args.Enqueue(new ArgumentDeclaration(type.code, name.code));
-                if(Accept(TokenType.ParenthesisRight))
-                    return args;
-                else if(args.Count!=0 && currentToken.token!=TokenType.Comma)
-                    throw new SyntaxException("Bad animation declaration in line " + currentToken.line);
-                NextToken();
             }
+            return args;
         }
 
         private Statement HandleIfStatement()
@@ -234,7 +230,7 @@ namespace Code
                 var expr2 = GetArithmExpr();
                 Expect(TokenType.ParenthesisRight);
                 var blockStatements = GetStatementBlock();
-                var elseBlockStatements = new List<Statement>();
+                var elseBlockStatements = new Queue<Statement>();
                 if (Accept(TokenType.Else))
                     elseBlockStatements = GetStatementBlock();
                 return new IfStatement(expr1, relationOp, expr2, blockStatements, elseBlockStatements);
@@ -255,7 +251,7 @@ namespace Code
                 var idcc = new List<Identifier>();
                 idcc.Add(new Identifier(idc.code,0));
                 idcc = GetAttribToken(idcc);
-                List<Statement> blockStatements = GetStatementBlock();
+                Queue<Statement> blockStatements = GetStatementBlock();
                 return new ForEachStatement(idv.code, new ValueEvaluator(idcc), blockStatements);
             }
             return null;
@@ -267,7 +263,7 @@ namespace Code
             {
                 TokenInfo period = currentToken;
                 Expect(TokenType.Integer);
-                List<Statement> blockStatements = GetStatementBlock();
+                Queue<Statement> blockStatements = GetStatementBlock();
                 return new EachStatement(period.value ?? default(int), blockStatements);
             }
             return null;
@@ -462,7 +458,7 @@ namespace Code
             throw new SyntaxException("Expected relation operator in line " + currentToken.line);
         }
 
-        private List<Statement> statements;
+        private Queue<Statement> statements;
         private Lexer lexer;
         private TokenInfo currentToken;
     }

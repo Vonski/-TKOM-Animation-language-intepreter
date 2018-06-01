@@ -10,6 +10,7 @@ namespace Code
             if (File.Exists(path))
                 reader = new StreamReader(path);
             else
+
                 throw new ScannerException("There is no file with path: " + path);
         }
 
